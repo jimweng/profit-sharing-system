@@ -1,16 +1,41 @@
-let sharestaker = {};
+module.exports = class {
 
-module.exports = class sharestaker {
-    static async get() {
+    static sharestakers = {};
 
+    static getAllStakers() {
+        return this.sharestakers;
     }
 
-    static async set({account, amount}) {
-        
+    static setStaker({ account, amount }) {
+        if (account in this.sharestakers) {
+            this.sharestakers[account] += amount;
+        } else {
+            this.sharestakers[account] = amount;
+        }
+        return this.sharestakers[account];
     }
 
-    static async delete(account) {
-        delete sharestaker[account];
+    static getStaker(account) {
+        if (account in this.sharestakers) {
+            return this.sharestakers[account];
+        }
+        return false;
+    }
+
+    static removeStaker(account) {
+        delete this.sharestakers[account];
         return `${account} has been deleted`;
+    }
+
+    static removeAllStakers() {
+        if (Object.keys(this.sharestakers).length == 0) {
+            return;
+        } else {
+
+        for(const account in this.sharestakers) {
+            delete this.sharestakers[account]
+        }
+        }
+        return;
     }
 };
