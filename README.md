@@ -1,1 +1,3 @@
-# profit-sharing-system
+- 1. Wrote down all the basic function unit tests
+    - Found that the data access layer did not decouple with the code
+- 2. 
