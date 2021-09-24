@@ -22,19 +22,13 @@ module.exports = class {
         return false;
     }
 
-    static removeStaker(account) {
-        delete this.sharestakers[account];
-        return `${account} has been deleted`;
-    }
-
     static removeAllStakers() {
         if (Object.keys(this.sharestakers).length == 0) {
             return;
         } else {
-
-        for(const account in this.sharestakers) {
-            delete this.sharestakers[account]
-        }
+            for (const account in this.sharestakers) {
+                delete this.sharestakers[account]
+            }
         }
         return;
     }

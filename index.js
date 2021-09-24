@@ -12,10 +12,11 @@ const getCurrentSeason = () => {
     return returnObj;
 }
 
-// TODO: amount uppder bound
 const invest = ({ amount, account }) => {
     if (!account) return; 
     if (amount < 0) return Error('should deposit greater than 0');
+    if (amount > 1e18) return Error('Overflow');
+
     return ShareStakers.setStaker({ account, amount });
 }
 
@@ -44,10 +45,10 @@ const claim = (holder) => {
 
     // calculate the portion of the holder
     const totalShare = Object.values(ShareStakers.getAllStakers()).reduce((a, b) => a + b);
-    //Profit.setProfit({season: thisSeason-1, amount: -profitToShare * ShareStakers.getStaker(holder) / totalShare})    
 
     //console.log(`${holder} claim: ${profitToShare * ShareStakers.getStaker(holder) / totalShare}`);
-    return profitToShare * ShareStakers.getStaker(holder) / totalShare;
+    // 18 digit precision
+    return parseFloat(profitToShare * ShareStakers.getStaker(holder) / totalShare).toPrecision(18);
 }
 
 const withdraw = ({ amount, account }) => {

@@ -25,4 +25,9 @@ module.exports = class {
         this.season = 1;
         return this.season;
     }
+
+    static rollbackMaxClaimAvailableSeason() {
+        this.MAXCLAIMABLESEASON = 1;
+        return this.MAXCLAIMABLESEASON;
+    }
 }
