@@ -28,7 +28,7 @@ const calculateClaimableAmount = (holder) => {
 // Summary the situation on the end of season, and update season to next.
 const getCurrentSeason = () => {
     const currentSeason = Season.getSeason();
-    if (!Profit.getSeasonProfit(Season.getSeason())) {
+    if (!Profit.getSeasonProfit(currentSeason)) {
         Profit.setProfit({ season: currentSeason, amount: 0 });
     }
 
