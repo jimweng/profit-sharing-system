@@ -14,7 +14,9 @@ const Season = require('../models/season');
 describe('test getCurrentSeason', () => {
     beforeEach(() => {
         Profit.clearProfit();
+        Profit.clearClaimList();
         Season.rollbackSeason();
+        Season.rollbackMaxClaimAvailableSeason();
         ShareStakers.removeAllStakers();
     })
 
@@ -31,7 +33,9 @@ describe('test getCurrentSeason', () => {
 describe('test invest', () => {
     beforeEach(() => {
         Profit.clearProfit();
+        Profit.clearClaimList();
         Season.rollbackSeason();
+        Season.rollbackMaxClaimAvailableSeason();
         ShareStakers.removeAllStakers();
     })
 
@@ -58,7 +62,9 @@ describe('test invest', () => {
 describe('test addProfit', () => {
     beforeEach(() => {
         Profit.clearProfit();
+        Profit.clearClaimList();
         Season.rollbackSeason();
+        Season.rollbackMaxClaimAvailableSeason();
         ShareStakers.removeAllStakers();
     })
 
@@ -71,7 +77,9 @@ describe('test addProfit', () => {
 describe('test calim', () => {
     beforeEach(() => {
         Profit.clearProfit();
+        Profit.clearClaimList();
         Season.rollbackSeason();
+        Season.rollbackMaxClaimAvailableSeason();
         ShareStakers.removeAllStakers();
     })
 
@@ -83,7 +91,9 @@ describe('test calim', () => {
 describe('test withdraw', () => {
     beforeEach(() => {
         Profit.clearProfit();
+        Profit.clearClaimList();
         Season.rollbackSeason();
+        Season.rollbackMaxClaimAvailableSeason();
         ShareStakers.removeAllStakers();
     })
 
@@ -107,7 +117,10 @@ describe('test withdraw', () => {
 describe('integration test', () => {
     beforeEach(() => {
         Profit.clearProfit();
+        Profit.clearClaimList();
+        Profit.clearClaimed();
         Season.rollbackSeason();
+        Season.rollbackMaxClaimAvailableSeason();
         ShareStakers.removeAllStakers();
     })
 
@@ -121,30 +134,98 @@ describe('integration test', () => {
         expect(invest({ account: account1, amount: amount1 })).toEqual(amount1);
         expect(addProfit(profit1)).toEqual(profit1);
         expect(invest({ account: account2, amount: amount2 })).toEqual(amount2);
-        expect(addProfit(profit2)).toEqual(profit1+profit2);
-        expect(invest({ account: account3, amount: amount3 })).toEqual(amount2+amount3);
+        expect(addProfit(profit2)).toEqual(profit1 + profit2);
+        expect(invest({ account: account3, amount: amount3 })).toEqual(amount2 + amount3);
         expect(claim('Dave')).toEqual(0);
-        expect(getCurrentSeason()).toEqual({ season: 1, profit: profit1+profit2, sharestakers: { 'Steve': 10, 'Dave': 40 } });
+        expect(getCurrentSeason()).toEqual({ season: 1, profit: profit1 + profit2, sharestakers: { 'Steve': 10, 'Dave': 40 } });
 
-        //season2
-        expect(claim('Dave')).toEqual('40.0000000000000000');
-        expect(getCurrentSeason()).toEqual({ season: 2, profit: 0, sharestakers: { 'Steve': 10, 'Dave': 40}});
+        //season 2
+        expect(claim('Dave')).toEqual(40);
+        expect(getCurrentSeason()).toEqual({ season: 2, profit: 0, sharestakers: { 'Steve': 10, 'Dave': 40 } });
 
         // season 3
         const account4 = 'Steve', amount4 = 20;
         const profit3 = 35;
-        expect(invest({ account: account4, amount: amount4 })).toEqual(amount1+amount4);
+        expect(invest({ account: account4, amount: amount4 })).toEqual(amount1 + amount4);
         expect(claim('Steve')).toEqual(0);
         expect(addProfit(profit3)).toEqual(profit3);
-        expect(getCurrentSeason()).toEqual({ season: 3, profit: profit3, sharestakers: { 'Steve': 30, 'Dave': 40 }});
+        expect(getCurrentSeason()).toEqual({ season: 3, profit: profit3, sharestakers: { 'Steve': 30, 'Dave': 40 } });
 
         // season 4
-        expect(claim('Steve')).toEqual('15.0000000000000000');
-        expect(claim('Dave')).toEqual('20.0000000000000000');
-        expect(getCurrentSeason()).toEqual({ season: 4, profit: 0, sharestakers: { 'Steve': 30, 'Dave': 40}});
+        expect(claim('Steve')).toEqual(15);
+        expect(claim('Dave')).toEqual(20);
+        expect(getCurrentSeason()).toEqual({ season: 4, profit: 0, sharestakers: { 'Steve': 30, 'Dave': 40 } });
     })
 
     it('should return based on different maxClaimAvailableSeason', () => {
-        
+        Season.setMaxClaimAvailableSeason(2);
+
+        // season 1;
+        const account1 = 'Steve', amount1 = 10;
+        const account2 = 'Dave', amount2 = 15;
+        const account3 = 'Dave', amount3 = 25;
+        const profit1 = 20, profit2 = 30;
+
+        expect(invest({ account: account1, amount: amount1 })).toEqual(amount1);
+        expect(addProfit(profit1)).toEqual(profit1);
+        expect(invest({ account: account2, amount: amount2 })).toEqual(amount2);
+        expect(addProfit(profit2)).toEqual(profit1 + profit2);
+        expect(invest({ account: account3, amount: amount3 })).toEqual(amount2 + amount3);
+        expect(claim('Dave')).toEqual(0);
+        expect(getCurrentSeason()).toEqual({ season: 1, profit: profit1 + profit2, sharestakers: { 'Steve': 10, 'Dave': 40 } });
+
+        // season 2
+        expect(claim('Dave')).toEqual(40);
+        expect(getCurrentSeason()).toEqual({ season: 2, profit: 0, sharestakers: { 'Steve': 10, 'Dave': 40 } });
+
+        // season 3
+        const account4 = 'Steve', amount4 = 20;
+        const profit3 = 35;
+        expect(invest({ account: account4, amount: amount4 })).toEqual(amount1 + amount4);
+        expect(claim('Steve')).toEqual(10);  // profit: season 1 (20+30) + season 2(0) = 50 
+        expect(addProfit(profit3)).toEqual(profit3);
+        expect(getCurrentSeason()).toEqual({ season: 3, profit: profit3, sharestakers: { 'Steve': 30, 'Dave': 40 } });
+
+        // season 4
+        expect(claim('Steve')).toEqual(15);
+        expect(claim('Dave')).toEqual(20);  // profit: season 2(0) + season 3(35) = 35, 35* 4/7 = 20
+        expect(getCurrentSeason()).toEqual({ season: 4, profit: 0, sharestakers: { 'Steve': 30, 'Dave': 40 } });
+    })
+
+    it('should return correct if someone claimed twice in maxClaimAvailableSeason', () => {
+        Season.setMaxClaimAvailableSeason(2);
+
+        // season 1
+        const account1 = 'Steve', amount1 = 10;
+        const account2 = 'Dave', amount2 = 15;
+        const account3 = 'Dave', amount3 = 25;
+        const profit1 = 20, profit2 = 30;
+
+        expect(invest({ account: account1, amount: amount1 })).toEqual(amount1);
+        expect(addProfit(profit1)).toEqual(profit1);
+        expect(invest({ account: account2, amount: amount2 })).toEqual(amount2);
+        expect(addProfit(profit2)).toEqual(profit1 + profit2);
+        expect(invest({ account: account3, amount: amount3 })).toEqual(amount2 + amount3);
+        expect(claim('Dave')).toEqual(0);
+        expect(getCurrentSeason()).toEqual({ season: 1, profit: profit1 + profit2, sharestakers: { 'Steve': 10, 'Dave': 40 } });
+
+        // season 2
+        expect(claim('Dave')).toEqual(40);
+        expect(getCurrentSeason()).toEqual({ season: 2, profit: 0, sharestakers: { 'Steve': 10, 'Dave': 40 } });
+
+        // season 3 
+        // difference: Dave claim on season 3 who already claim the profit on season 2
+        const account4 = 'Steve', amount4 = 20;
+        const profit3 = 35;
+        expect(invest({ account: account4, amount: amount4 })).toEqual(amount1 + amount4);
+        expect(claim('Steve')).toEqual(10);  // profit: season 1 (20+30) + season 2(0) = 50 
+        expect(claim('Dave')).toEqual(0); // Dave claim his profit on season 2, so he will receive 0 this time.
+        expect(addProfit(profit3)).toEqual(profit3);
+        expect(getCurrentSeason()).toEqual({ season: 3, profit: profit3, sharestakers: { 'Steve': 30, 'Dave': 40 } });
+
+        // season 4
+        expect(claim('Steve')).toEqual(15);
+        expect(claim('Dave')).toEqual(20);  // profit: season 2(0) + season 3(35) = 35, 35 * 4/7 = 20
+        expect(getCurrentSeason()).toEqual({ season: 4, profit: 0, sharestakers: { 'Steve': 30, 'Dave': 40 } });
     })
 })

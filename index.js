@@ -2,35 +2,14 @@ const ShareStakers = require('./models/sharestakers');
 const Season = require('./models/season');
 const Profit = require('./models/profit');
 
-const getCurrentSeason = () => {
-    const returnObj = {
-        season: Season.getSeason(),
-        sharestakers: ShareStakers.getAllStakers() || {},
-        profit: Profit.getSeasonProfit(Season.getSeason()) || 0,
-    }
-    Season.nextSeason();
-    return returnObj;
-}
-
-const invest = ({ amount, account }) => {
-    if (!account) return; 
-    if (amount < 0) return Error('should deposit greater than 0');
-    if (amount > 1e18) return Error('Overflow');
-
-    return ShareStakers.setStaker({ account, amount });
-}
-
-const addProfit = (amount) => {
-    return Profit.setProfit({season: Season.getSeason(), amount});
-}
-
-const claim = (holder) => {
+const calculateClaimableAmount = (holder) => {
     let profitToShare = 0;
-    const thisSeason = Season.getSeason();
+    const currentSeason = Season.getSeason();
+    const endCondition = Math.max(currentSeason - Season.getMaxClaimAvailableSeason(), 0)
 
-    // all avaliable profit
-    for (let i = thisSeason - Season.getMaxClaimAvailableSeason(); i < thisSeason; i++) {
-        if (Profit.getSeasonProfit(i)) {
+    // All available profit(within claimAvailableSeason): invest on the season and the holder did not claim before. 
+    for (let i = currentSeason; i > endCondition; i--) {
+        if (Profit.getSeasonProfit(i) && !Profit.isSeasonClaimed({ holder, season: i })) {
             profitToShare += Profit.getSeasonProfit(i);
         }
     }
@@ -39,21 +18,66 @@ const claim = (holder) => {
         return Error('not enough to share');
     }
 
-    if (profitToShare == 0) {
-        return 0;
+    // Calculate the portion of the holder's share profit
+    const totalShare = Object.values(ShareStakers.getAllStakers()).reduce((a, b) => a + b);
+    let amount = parseFloat(profitToShare * ShareStakers.getStaker(holder) / totalShare).toPrecision(18);
+    Profit.setClaimList({ holder, amount: Number(amount) });
+    return;
+}
+
+// Summary the situation on the end of season, and update season to next.
+const getCurrentSeason = () => {
+    const currentSeason = Season.getSeason();
+    if (!Profit.getSeasonProfit(Season.getSeason())) {
+        Profit.setProfit({ season: currentSeason, amount: 0 });
     }
 
-    // calculate the portion of the holder
-    const totalShare = Object.values(ShareStakers.getAllStakers()).reduce((a, b) => a + b);
+    const returnObj = {
+        season: currentSeason,
+        sharestakers: ShareStakers.getAllStakers(),
+        profit: Profit.getSeasonProfit(currentSeason),
+    }
 
-    //console.log(`${holder} claim: ${profitToShare * ShareStakers.getStaker(holder) / totalShare}`);
-    // 18 digit precision
-    return parseFloat(profitToShare * ShareStakers.getStaker(holder) / totalShare).toPrecision(18);
+    // update claimableProfit and claimed
+    for (const staker in ShareStakers.getAllStakers()) {
+        calculateClaimableAmount(staker);
+    }
+
+    Season.nextSeason();
+    return returnObj;
+}
+
+const invest = ({ amount, account }) => {
+    if (!account) return;
+    if (amount < 0) return Error('should deposit greater than 0');
+    if (amount > 1e18) return Error('Overflow');
+
+    return ShareStakers.setStaker({ account, amount });
+}
+
+const addProfit = (amount) => {
+    return Profit.setProfit({ season: Season.getSeason(), amount });
+}
+
+const claim = (holder) => {
+    if (holder in Profit.getClaimList()) {
+        const profit = Profit.getClaimAmount(holder);
+        // If there is the available claim profit, then update the claimed list with the seasons that profits were claimed.
+        if (profit > 0) {
+            for (let i = Season.getSeason() - Season.getMaxClaimAvailableSeason(); i < Season.getSeason(); i++) {
+                Profit.setClaimed({ holder, season: i });
+            }
+        }
+
+        return profit;
+    } else {
+        return 0;
+    }
 }
 
 const withdraw = ({ amount, account }) => {
     if (!account) {
-        return; 
+        return;
     }
 
     if (amount < 0) {
